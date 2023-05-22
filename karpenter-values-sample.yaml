@@ -1,0 +1,151 @@
+# -- Overrides the chart's name.
+nameOverride: ""
+# -- Overrides the chart's computed fullname.
+fullnameOverride: ""
+# -- Additional labels to add into metadata.
+additionalLabels: {}
+# app: karpenter
+
+# -- Additional annotations to add into metadata.
+additionalAnnotations: {}
+# -- Image pull policy for Docker images.
+imagePullPolicy: IfNotPresent
+# -- Image pull secrets for Docker images.
+imagePullSecrets: []
+serviceAccount:
+  # -- Specifies if a ServiceAccount should be created.
+  create: true
+  # -- The name of the ServiceAccount to use.
+  # If not set and create is true, a name is generated using the fullname template.
+  name: "karpenter"
+  # -- Additional annotations for the ServiceAccount.
+  annotations:
+    eks.amazonaws.com/role-arn: "${AWS_KARPENTER_ROLE_ARN}"
+serviceMonitor:
+  # -- Specifies whether a ServiceMonitor should be created.
+  enabled: false
+  # -- Additional labels for the ServiceMonitor.
+  additionalLabels: {}
+  # -- Endpoint configuration for the ServiceMonitor.
+  endpointConfig: {}
+# -- Number of replicas.
+replicas: 1
+# -- Strategy for updating the pod.
+strategy:
+  rollingUpdate:
+    maxUnavailable: 1
+# -- Additional labels for the pod.
+podLabels: {}
+# -- Additional annotations for the pod.
+podAnnotations: {}
+podDisruptionBudget:
+  maxUnavailable: 1
+# -- SecurityContext for the pod.
+podSecurityContext:
+  fsGroup: 1000
+# -- PriorityClass name for the pod.
+priorityClassName: system-cluster-critical
+# -- Override the default termination grace period for the pod.
+terminationGracePeriodSeconds:
+# -- Bind the pod to the host network.
+# This is required when using a custom CNI.
+hostNetwork: false
+# -- Configure the DNS Policy for the pod
+dnsPolicy: ClusterFirst
+# -- Configure DNS Config for the pod
+dnsConfig: {}
+#  options:
+#    - name: ndots
+#      value: "1"
+# -- Node selectors to schedule the pod to nodes with labels.
+nodeSelector:
+  role: ${ROLE}
+# -- topologySpreadConstraints to increase the controller resilience
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+# -- Tolerations to allow the pod to be scheduled to nodes with taints. ====== UPDATE Accordingly =================
+tolerations:
+- key: CriticalAddonsOnly
+  operator: Exists
+# -- Additional volumes for the pod.
+extraVolumes: []
+
+controller:
+  # -- Controller image.
+  image: "public.ecr.aws/karpenter/controller:v0.15.0@sha256:7fc8a4bd3c2a7eea29e40c0db287eeb9deab0797987f0089c08c71da91c98523"
+  # -- SecurityContext for the controller container.
+  securityContext: {}
+  # -- Additional environment variables for the controller pod.
+  env: []
+  # - name: AWS_REGION
+  #   value: eu-west-1
+
+  # -- Resources for the controller pod.
+  resources:
+    requests:
+      cpu: 1
+      memory: 1Gi
+    limits:
+      cpu: 1
+      memory: 1Gi
+  # -- Controller log level, defaults to the global log level
+  logLevel: ""
+  # -- Controller log encoding, defaults to the global log encoding
+  logEncoding: ""
+  # -- Additional volumeMounts for the controller pod.
+  extraVolumeMounts: []
+  # - name: aws-iam-token
+  #   mountPath: /var/run/secrets/eks.amazonaws.com/serviceaccount
+  #   readOnly: true
+
+  # The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
+  # time which usually results in fewer but larger nodes.
+  batchMaxDuration: 10s
+  # The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive
+  # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
+  # will be batched separately.
+  batchIdleDuration: 1s
+webhook:
+  # -- Webhook image.
+  image: "public.ecr.aws/karpenter/webhook:v0.15.0@sha256:e046a8810150ce145c737e3330259ab297ad11fb32cf70dc50c97622b7d500d8"
+  # -- SecurityContext for the webhook container.
+  securityContext: {}
+  # -- The container port to use for the webhook.
+  port: 8443
+  # -- Additional environment variables for the webhook pod.
+  env:
+    - name: KUBERNETES_MIN_VERSION
+      value: ${karpenter_eks_min_version}
+  nodeSelector:
+    role: ${ROLE_NAME}
+  # UPDATE Accordingly ==================================================================
+  tolerations:
+  - key: CriticalAddonsOnly
+    operator: Exists
+  # -- Resources for the webhook pod.
+  resources:
+    limits:
+      cpu: 200m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+  # -- Webhook log level, defaults to the global log level
+  logLevel: ""
+  # -- Webhook log encoding, defaults to the global log encoding
+  logEncoding: ""
+  # -- Additional volumeMounts for the webhook pod.
+  extraVolumeMounts: []
+# -- Global log level
+logLevel: debug
+# -- Gloabl log encoding
+logEncoding: console
+# -- Cluster name.
+clusterName: "${CLUSTER_NAME}"
+# -- Cluster endpoint.
+clusterEndpoint: "${CLUSTER_ENDPOINT}"
+aws:
+  # -- The default instance profile to use when launching nodes on AWS
+  defaultInstanceProfile: ""
